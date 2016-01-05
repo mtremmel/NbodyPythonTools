@@ -17,18 +17,21 @@ snapsPerRun = 3   #number of snapshots per run of rockstar... for large simulati
 cleanup = True    #True = delete the raw rockstar output, which is no longer needed after post processing.
 nmin = 128
 nread = 256
+minstep = 0
+maxstep = 4096
+numstart = 0
 
 if not os.path.exists('rockstarfiles'): os.system('mkdir rockstarfiles')
 
 def make():
-    rs.snaps(snapsPerRun)
-    rs.cfg(ncorespernode=ncorespernode, nnodes=nnodes, 
+    rs.snaps(snapsPerRun,minstep, maxstep, numstart)
+    rs.cfg(istart,ncorespernode=ncorespernode, nnodes=nnodes, 
            ServerInterface=ServerInterface, massdef=massdef, 
            massdef2=massdef2, fileformat=fileformat,nmin=nmin,nread=nread) 
-    rs.mainsubmissionscript(nnodes=nnodes, ncorespernode=ncorespernode, 
+    rs.mainsubmissionscript(istart,nnodes=nnodes, ncorespernode=ncorespernode, 
                             machine=machine, email=email, 
                             rockstardir=rockstardir, queue=queue, walltime=walltimemain)
-    rs.postsubmissionscript(nnodes=nnodes, ncorespernode=ncorespernode,
+    rs.postsubmissionscript(istart,nnodes=nnodes, ncorespernode=ncorespernode,
                             machine=machine, email=email, 
                             rockstardir=rockstardir, queue=queue, walltime=walltimepost, fileformat=fileformat,cleanup=cleanup,nmin=nmin)
     

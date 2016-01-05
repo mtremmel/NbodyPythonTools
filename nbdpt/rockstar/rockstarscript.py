@@ -45,15 +45,24 @@ from .. import nptipsyreader
 import os
 from .. import findtipsy
 
-def snaps(snapsPerRun,basedir='.'):
+def snaps(snapsPerRun,mins, maxs,istart,basedir='.'):
     fcnt = 0
+    fcnt += istart
     cnt = 0
+    okcnt = 0
     files = findtipsy.find(basedir=basedir)
     files.sort()
 #    snaps = []
 #    f = open('snaps.txt', 'w')
-    for i in files: 
-	if cnt%snapsPerRun==0:
+    f = open('steps.list','r')
+    steps = f.readlines()
+    f.close()
+    for i in files:
+	if int(steps[cnt].strip('\n'))<mins or int(steps[cnt].strip('\n'))>maxs:
+		print "skipping step ", steps[cnt]
+		cnt +=1
+		continue
+	if okcnt%snapsPerRun==0:
 		if fcnt != 0: f.close()
 		fcnt+=1
 		f = open('snaps'+str(fcnt)+'.txt','w')
@@ -61,10 +70,11 @@ def snaps(snapsPerRun,basedir='.'):
 	else:
 		f.write(i.split('.')[-1] + '\n')
 	cnt+=1
+	okcnt += 1
     f.close()
     return
 
-def cfg(ncorespernode=32, nnodes=1, ServerInterface='ipogif0', massdef='200c', massdef2=None, fileformat='TIPSY', basedir='.',nmin=20,nread=1):
+def cfg(istart,ncorespernode=32, nnodes=1, ServerInterface='ipogif0', massdef='200c', massdef2=None, fileformat='TIPSY', basedir='.',nmin=20,nread=1):
     snapfiles = glob.glob('snaps*.txt')
     nsnapfiles = len(snapfiles)
     tipsyfile = findtipsy.find(basedir=basedir) #('.').join(glob.glob('*.iord')[0].split('.')[:-1])
@@ -102,7 +112,9 @@ def cfg(ncorespernode=32, nnodes=1, ServerInterface='ipogif0', massdef='200c', m
         force = eps*dkpc*tipsy.h/1e3
         f.close()
     
-    for ii in range(nsnapfiles): 
+    for ii in range(nsnapfiles):
+	    if ii < istart:
+		continue 
 	    f = open('rockstar.submit.'+str(ii+1)+'.cfg', 'w')
 	    if basedir: f.write('INBASE=' + basedir + '\n')
 	    f.write('OVERLAP_LENGTH=0.5 \n')
@@ -140,11 +152,13 @@ def cfg(ncorespernode=32, nnodes=1, ServerInterface='ipogif0', massdef='200c', m
 	    f.close()
 
 
-def mainsubmissionscript(walltime = '24:00:00', email = 'l.sonofanders@gmail.com', machine='stampede', nnodes=1, ncorespernode=32, queue='largemem', rockstardir='/home1/02575/lmanders/code/Rockstar-Galaxies/', basedir='.'):
+def mainsubmissionscript(istart, walltime = '24:00:00', email = 'l.sonofanders@gmail.com', machine='stampede', nnodes=1, ncorespernode=32, queue='largemem', rockstardir='/home1/02575/lmanders/code/Rockstar-Galaxies/', basedir='.'):
     snapfiles = glob.glob('snaps*.txt')
     nsnapfiles = len(snapfiles)
     sbatchname = findtipsy.find(basedir=basedir)[0].split('.')[0]
     for ii in range(nsnapfiles):
+	    if ii < istart:
+                continue
 	    configf = 'rockstar.submit.'+str(ii+1)+'.cfg'
 	    snapsf = open('snaps'+str(ii+1)+'.txt','r')
 	    snaps = snapsf.readlines()
@@ -207,11 +221,11 @@ def mainsubmissionscript(walltime = '24:00:00', email = 'l.sonofanders@gmail.com
 	        f.write("perl -e 'sleep 1 while (!(-e "+'"' + "auto-rockstar.cfg"+'"' + "))' \n")
 	        f.write(rockstardir + 'rockstar-galaxies -c auto-rockstar.cfg \n')
 	    for jj in range(len(snaps)):
-		f.write("mv out_"+str(jj)+".list out_"+snaps[jj].strip('\n')+'\n')
+		f.write("mv out_"+str(jj)+".list out_"+snaps[jj].strip('\n')+'.list\n')
 	    f.close()
 
 
-def postsubmissionscript(email = 'l.sonofanders@gmail.com', machine = 'stampede', queue = 'largemem', rockstardir='/home1/02575/lmanders/code/Rockstar-Galaxies', ncorespernode=32, walltime='24:00:00', nnodes=1, fileformat='TIPSY', basedir='.',cleanup=True,nmin=0):
+def postsubmissionscript(istart,email = 'l.sonofanders@gmail.com', machine = 'stampede', queue = 'largemem', rockstardir='/home1/02575/lmanders/code/Rockstar-Galaxies', ncorespernode=32, walltime='24:00:00', nnodes=1, fileformat='TIPSY', basedir='.',cleanup=True,nmin=0):
     snapfiles = glob.glob('snaps*.txt')
     nsnapfiles = len(snapfiles)
     tipsyfile = findtipsy.find(basedir=basedir)[0]
@@ -225,6 +239,8 @@ def postsubmissionscript(email = 'l.sonofanders@gmail.com', machine = 'stampede'
     #outfiles = glob.glob('out_*.list')
     simcnt = 0
     for ii in range(nsnapfiles):
+	    if ii < istart:
+                continue
 	    snapsf = open('snaps'+str(ii+1)+'.txt')
 	    snaps = [line.split('\n')[0] for line in snapsf]
 	    snapsf.close()
