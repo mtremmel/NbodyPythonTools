@@ -50,8 +50,11 @@ def snaps(snapsPerRun,mins, maxs,istart,basedir='.'):
     fcnt += istart
     cnt = 0
     okcnt = 0
-    files = findtipsy.find(basedir=basedir)
-    files.sort()
+    f = open('files.list','r')
+    files = f.readlines()
+    f.close()
+    #files = findtipsy.find(basedir=basedir)
+    #files.sort()
 #    snaps = []
 #    f = open('snaps.txt', 'w')
     f = open('steps.list','r')
@@ -66,15 +69,21 @@ def snaps(snapsPerRun,mins, maxs,istart,basedir='.'):
 		if fcnt != 0: f.close()
 		fcnt+=1
 		f = open('snaps'+str(fcnt)+'.txt','w')
-		f.write(i.split('.')[-1] + '\n')
+		if snapsPerRun > 1:
+			f.write(i.split('.')[-1])
+		else:
+			f.write(i.split('.')[-1].strip('\n'))
 	else:
-		f.write(i.split('.')[-1] + '\n')
+		if (okcnt+1)%snapsPerRun==0:
+			f.write(i.split('.')[-1].strip('\n'))
+		else:
+			f.write(i.split('.')[-1])
 	cnt+=1
 	okcnt += 1
     f.close()
     return
 
-def cfg(istart,ncorespernode=32, nnodes=1, ServerInterface='ipogif0', massdef='200c', massdef2=None, fileformat='TIPSY', basedir='.',nmin=20,nread=1):
+def cfg(istart,ncorespernode=32, nnodes=1, ServerInterface='ipogif0', massdef='200c', massdef2=None, fileformat='TIPSY', basedir='.',nmin=20,nread=1,nwrite=None):
     snapfiles = glob.glob('snaps*.txt')
     nsnapfiles = len(snapfiles)
     tipsyfile = findtipsy.find(basedir=basedir) #('.').join(glob.glob('*.iord')[0].split('.')[:-1])
@@ -91,7 +100,7 @@ def cfg(istart,ncorespernode=32, nnodes=1, ServerInterface='ipogif0', massdef='2
     if tipsyfile.split('/')[-1][0] == 'h':
         tipsy._read()
         darkmass = np.min(tipsy.dark['mass'])*dmsol*tipsy.h
-        force = np.min(tipsy.dark['eps'])*dkpc*tipsy.h/1e3*4.
+        force = np.min(tipsy.dark['eps'])*dkpc*tipsy.h/1e3
     if (tipsyfile.split('/')[-1][0:5] == 'cosmo')or (tipsyfile.split('/')[-1][0:7] == 'romulus'):
         if fileformat == 'NCHILADA':
             f = open(filename+'.'+snap+'/dark/mass')
@@ -119,7 +128,12 @@ def cfg(istart,ncorespernode=32, nnodes=1, ServerInterface='ipogif0', massdef='2
 	    if basedir: f.write('INBASE=' + basedir + '\n')
 	    f.write('OVERLAP_LENGTH=0.5 \n')
 	    f.write('PARALLEL_IO=1 \n')
-	    f.write('NUM_WRITERS=' + str(ncorespernode*nnodes)+' \n')
+	    if not nwrite:
+		pchunk = str(ncorespernode*nnodes)
+	    	f.write('NUM_WRITERS=' + str(ncorespernode*nnodes)+' \n')
+	    else:
+		pchunk = nwrite
+		f.write('NUM_WRITERS=' + str(nwrite)+' \n')
 	    f.write('NUM_BLOCKS='+str(nread)+' \n')
 	    f.write('FILENAME=' + filename +'.<snap> \n')
 	    f.write('#NUM_SNAPS=1 \n')
@@ -142,7 +156,7 @@ def cfg(istart,ncorespernode=32, nnodes=1, ServerInterface='ipogif0', massdef='2
 	    f.write('BOX_SIZE = ' + str(dkpc*tipsy.h/1e3) + '\n')
 	    f.write('#For ascii files, the file format is assumed to be: \n# X Y Z VX VY VZ ID \n')
 	    f.write('#For non-periodic boundary conditions only: \n#PERIODIC=0 \n')                    
-	    f.write('FULL_PARTICLE_CHUNKS = ' + str(ncorespernode*nnodes)  + '  # Should be the same as NUM_WRITERS above to save all particles \n')
+	    f.write('FULL_PARTICLE_CHUNKS = ' + pchunk  + '  # Should be the same as NUM_WRITERS above to save all particles \n')
 	    f.write('PARALLEL_IO_SERVER_INTERFACE = "' + ServerInterface + '"\n')
 	    f.write('MASS_DEFINITION  = "' + massdef + '"\n')
 	    if massdef2: f.write('MASS_DEFINITION2 = "' + massdef2+ '"\n')
@@ -169,7 +183,7 @@ def mainsubmissionscript(istart, walltime = '24:00:00', email = 'l.sonofanders@g
 	        f.write('#!/bin/bash \n')
 	        f.write('#PBS -N ' + sbatchname + '.'+str(ii+1)+'.rock \n')
 	        if machine == 'pleiades': f.write('#PBS -lselect=' + str(nnodes) + ':ncpus='+str(ncorespernode)+':mpiprocs=1'+ '\n')
-	        if machine == 'bluewaters':f.write('#PBS -lnodes=' + str(nnodes) + ':ppn='+str(ncorespernode)+'\n')
+	        if machine == 'bluewaters':f.write('#PBS -lnodes=' + str(nnodes) + ':ppn=32'+'\n')
 	        f.write('#PBS -m be \n')
 	        f.write('#PBS -M ' + email +' \n')
 	        f.write('#PBS -q ' + queue + ' \n')

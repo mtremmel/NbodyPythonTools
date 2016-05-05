@@ -19,12 +19,12 @@ nmin = 128
 nread = 256
 minstep = 0
 maxstep = 4096
-numstart = 0
+istart = 0
 
 if not os.path.exists('rockstarfiles'): os.system('mkdir rockstarfiles')
 
 def make():
-    rs.snaps(snapsPerRun,minstep, maxstep, numstart)
+    rs.snaps(snapsPerRun,minstep, maxstep, istart)
     rs.cfg(istart,ncorespernode=ncorespernode, nnodes=nnodes, 
            ServerInterface=ServerInterface, massdef=massdef, 
            massdef2=massdef2, fileformat=fileformat,nmin=nmin,nread=nread) 
