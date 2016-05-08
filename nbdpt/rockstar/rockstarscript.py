@@ -194,11 +194,16 @@ def mainsubmissionscript(istart, walltime = '24:00:00', email = 'l.sonofanders@g
 	        f.write('ulimit -c unlimited \n')
 	
 	        if machine=='bluewaters': prefix = 'aprun -n ' + str(nnodes) + ' -N 1 -d 32 '
-	        else: prefix = ''
+	        else: prefix = 'mpiexec -ppn 1 -np '+str(nnodes)+' '
 	    
 	        f.write(rockstardir + 'rockstar-galaxies -c '+configf+' & \n')
 	        f.write("perl -e 'sleep 1 while (!(-e "+'"' + "auto-rockstar.cfg"+'"' + "))' \n")
+			if machine == 'pleiades':
+				f.write("mpdboot --file=$PBS_NODEFILE --ncpus=1 --totalnum=`cat $PBS_NODEFILE  | sort -u | wc -l` --ifhn=`head -1 $PBS_NODEFILE`  --rsh=ssh --mpd=`which mpd` --ordered\n")
+
 	        f.write(prefix + rockstardir + 'rockstar-galaxies -c auto-rockstar.cfg \n')
+			if machine == 'pleiades':
+				f.write("mpdallexit\n")
 	
 	    if machine == 'stampede':
 	        filename = 'rockstar.'+str(ii+1)+'.sbatch'
